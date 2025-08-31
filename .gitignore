@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# editors/IDEs
+.vscode/
+.idea/
+
+# temp files
+*.log
+*.tmp
+*~
+
+# Übersicht cache (rare, but safe)
+*.cache
