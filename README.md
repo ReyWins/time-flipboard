@@ -256,4 +256,4 @@ You can extend the `base` offset map in `fallbackTime` if needed.
 
 ## Credits
 - [Tabler Icons](https://tabler.io/icons) — theme toggle icons.
-- Übersicht by Felix Hageloh.
+- [Übersicht](https://tracesof.net/uebersicht/) by Felix Hageloh.
