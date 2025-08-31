@@ -9,42 +9,42 @@ Independent header sizing, day/night toggle (Tabler icons), header color overrid
 <div align="center">
 
   <figure style="display:inline-block; width:49%; margin:0 0 16px;">
-    <img src="assets/dark-mode.png" alt="Dark mode (gold header labels)" width="100%">
+   <img src="Time-Flipboard.widget/assets/dark-mode.png" alt="Dark mode (gold header labels)" width="100%">
     <figcaption style="font-size:90%; margin-top:6px;">
       <strong>Dark mode</strong> — classic split-flap look with gold header labels.
     </figcaption>
   </figure>
 
   <figure style="display:inline-block; width:49%; margin:0 0 16px;">
-    <img src="assets/light-mode.png" alt="Light mode (clean white board)" width="100%">
+    <img src="Time-Flipboard.widget/assets/light-mode.png" alt="Light mode (clean white board)" width="100%">
     <figcaption style="font-size:90%; margin-top:6px;">
       <strong>Light mode</strong> — bright board, high-contrast row text.
     </figcaption>
   </figure>
 
   <figure style="display:inline-block; width:49%; margin:0 0 16px;">
-    <img src="assets/custom-header-example.png" alt="Custom header label & width (English)" width="100%">
+    <img src="Time-Flipboard.widget/assets/custom-header-example.png" alt="Custom header label & width (English)" width="100%">
     <figcaption style="font-size:90%; margin-top:6px;">
       <strong>Custom header</strong> — edit <code>HEADERS</code> and header-only tile counts.
     </figcaption>
   </figure>
 
   <figure style="display:inline-block; width:49%; margin:0 0 16px;">
-    <img src="assets/custom-header-color.png" alt="Header label color override (jade on light, gold on dark)" width="100%">
+    <img src="Time-Flipboard.widget/assets/custom-header-color.png" alt="Header label color override (jade on light, gold on dark)" width="100%">
     <figcaption style="font-size:90%; margin-top:6px;">
       <strong>Header colors</strong> — jade color example, but gold in dark by(override via CSS or <code>HEADER_LABEL_COLOR</code>).
     </figcaption>
   </figure>
 
   <figure style="display:inline-block; width:49%; margin:0 0 16px;">
-    <img src="assets/french-example.png" alt="French example (HEURE / DESTINATION)" width="100%">
+    <img src="Time-Flipboard.widget/assets/french-example.png" alt="French example (HEURE / DESTINATION)" width="100%">
     <figcaption style="font-size:90%; margin-top:6px;">
       <strong>French example</strong> — <code>HEURE</code> / <code>DESTINATION</code> with header room for longer labels.
     </figcaption>
   </figure>
 
   <figure style="display:inline-block; width:49%; margin:0 0 16px;">
-    <img src="assets/custom-header-label.png" alt="Header label edit location in code" width="100%">
+    <img src="Time-Flipboard.widget/assets/custom-header-label.png" alt="Header label edit location in code" width="100%">
     <figcaption style="font-size:90%; margin-top:6px;">
       <strong>Toggle custom CSS color.</strong> — header label & widths live near the top of <code>index.coffee</code>.
     </figcaption>
