@@ -1,0 +1,318 @@
+# Split-Flap Board — TIME | CITY
+# City updates: EVERY tile flips left→right with brief “chatter”.
+# Faces show NEW char; overlays animate OLD(top/random) → NEW(bottom).
+# Thinner hinge & pins for smoother look.
+
+# ---------- CONFIG ----------
+POS =
+  x: 0
+  y: 0
+  z: 0
+  scale: 1
+
+USE_12H       = false
+SHOW_SECONDS  = false
+CITY_TILES    = 14
+CITY_REVEAL_ON_START = true
+
+# Header labels (editable)
+HEADERS =
+  time: 'TIME'
+  city: 'CITY'
+
+# Force all-caps for city text?
+FORCE_UPPERCASE = false
+
+# Tile & type
+TILE_W  = 40
+TILE_H  = 60
+TILE_G  = 6
+FONT_SZ = 24
+
+# Edit your cities + time zones (IANA IDs).
+# Spaces are preserved → blank tiles remain visible.
+CITIES = [
+  { city: 'New York City', tz: 'America/New_York' }
+  { city: 'Dallas',        tz: 'America/Chicago' }
+  { city: 'San Francisco', tz: 'America/Los_Angeles' }
+  { city: 'Honolulu',      tz: 'Pacific/Honolulu' }
+]
+
+# Characters used for “chatter” on the top flap (mixed case)
+CHARSET = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz0123456789-–—•·:;,.!?"
+
+# --------------------------------
+refreshFrequency: 1000
+command: "date +%s"
+style: ""
+className: ""
+
+# ---------- time helpers ----------
+pad2 = (n) -> if n < 10 then '0' + n else '' + n
+
+nthDow = (year, monthIdx, dow, nth) ->
+  d = new Date(Date.UTC(year, monthIdx, 1))
+  shift = (dow - d.getUTCDay() + 7) % 7
+  day = 1 + shift + 7*(nth-1)
+  new Date(Date.UTC(year, monthIdx, day))
+
+isUsDst = (utcNow) ->
+  y = utcNow.getUTCFullYear()
+  start = nthDow(y, 2, 0, 2)   # 2nd Sun in Mar
+  end   = nthDow(y, 10, 0, 1)  # 1st Sun in Nov
+  utcNow >= start and utcNow < end
+
+fallbackTime = (tzId, use12h, showSec) ->
+  now = new Date()
+  utc = new Date(now.getTime() + now.getTimezoneOffset()*60000)
+  dst = isUsDst(utc)
+  base =
+    'America/New_York':    if dst then -4 else -5
+    'America/Chicago':     if dst then -5 else -6
+    'America/Los_Angeles': if dst then -7 else -8
+    'Pacific/Honolulu':    -10
+  tzOff = base[tzId] ? 0
+  t = new Date(utc.getTime() + tzOff*3600000)
+  hh = t.getUTCHours(); mm = t.getUTCMinutes(); ss = t.getUTCHours() # typo guard? keep hh; correct seconds below
+  ss = t.getUTCSeconds()
+  if use12h
+    h12 = hh % 12; h12 = 12 if h12 is 0
+    pad2(h12) + ':' + pad2(mm) + (if showSec then ':' + pad2(ss) else '')
+  else
+    pad2(hh) + ':' + pad2(mm) + (if showSec then ':' + pad2(ss) else '')
+
+formatTime = (tz) ->
+  try
+    opt =
+      hour: '2-digit'
+      minute: '2-digit'
+      hour12: USE_12H
+      timeZone: tz
+    if SHOW_SECONDS then opt.second = '2-digit'
+    s = new Intl.DateTimeFormat('en-US', opt).format new Date()
+    base = s.split(' ')[0]
+    if base.indexOf(':') is -1 then throw new Error('bad Intl')
+    parts = base.split(':')
+    parts = ((if p.length < 2 then '0' + p else p) for p in parts)
+    parts.join(':')
+  catch e
+    fallbackTime tz, USE_12H, SHOW_SECONDS
+
+# Preserve spaces → blank tiles; optional uppercase.
+padFixed = (txt, w) ->
+  t = (txt or '').toString()
+  t = t.toUpperCase() if FORCE_UPPERCASE
+  if t.length < w then t + Array(w - t.length + 1).join(' ') else t.slice(0, w)
+
+# ---------- little helpers ----------
+randDifferent = (target) ->
+  pool = CHARSET
+  t = (target or ' ')
+  for tries in [0...6]
+    c = pool.charAt(Math.floor(Math.random()*pool.length))
+    return c if c.toUpperCase() isnt t.toUpperCase()
+  if t is ' ' then '-' else '•'
+
+# ---------- tiles ----------
+tileStatic = (ch) ->
+  g = if ch is ' ' then '&nbsp;' else ch
+  """
+  <div class="tile blk">
+    <div class="face top"><span class="glyph">#{g}</span></div>
+    <div class="face bottom"><span class="glyph">#{g}</span></div>
+    <div class="hinge"></div>
+    <div class="pin pin-l"></div><div class="pin pin-r"></div>
+  </div>
+  """
+
+# Faces = NEW char; overlays animate TOP=overlayTopChar (random/old), BOTTOM=NEW
+tileFlip = (oldCh, newCh, delayMs=0, overlayTopChar=null) ->
+  og = if overlayTopChar? then overlayTopChar else oldCh
+  og = if og is ' ' then '&nbsp;' else og
+  ng = if newCh is ' ' then '&nbsp;' else newCh
+  """
+  <div class="tile blk animate" style="--st: #{delayMs}ms">
+    <div class="face top"><span class="glyph">#{ng}</span></div>
+    <div class="face bottom"><span class="glyph">#{ng}</span></div>
+    <div class="flip flip-top"><span class="glyph">#{og}</span></div>
+    <div class="flip flip-bottom"><span class="glyph">#{ng}</span></div>
+    <div class="hinge"></div>
+    <div class="pin pin-l"></div><div class="pin pin-r"></div>
+  </div>
+  """
+
+# If forceFlipAll=true, flip even when o==n.
+# If noisyTop=true, use a random char on the TOP overlay.
+tilesFor = (oldText, newText, staggerMs=0, forceFlipAll=false, noisyTop=false) ->
+  out = []
+  for i in [0...newText.length]
+    n = newText.charAt(i)
+    o = if oldText? then oldText.charAt(i) else n
+    if forceFlipAll or (o isnt n)
+      topOverlay = if noisyTop then randDifferent(n) else o
+      out.push tileFlip(o, n, i*staggerMs, topOverlay)
+    else
+      out.push tileStatic(n)
+  out.join('')
+
+# -------- state across renders --------
+prevTimes  = null
+prevCities = null
+
+render: ->
+  timeLen = if SHOW_SECONDS then 8 else 5
+  timeCol = (timeLen * TILE_W) + ((timeLen - 1) * TILE_G)
+
+  # SAFELY choose cities source (ignore empty overrides)
+  arr = if window? then window._flipCitiesOverride else null
+  localCities = if Array.isArray(arr) and arr.length > 0 then arr else CITIES
+
+  # Never render zero rows (belt & suspenders)
+  if !localCities? or localCities.length is 0
+    localCities = [{ city: '', tz: 'America/New_York' }]
+
+  times  = (for r in localCities then padFixed(formatTime(r.tz), timeLen))
+  cities = (for r in localCities then padFixed(r.city, CITY_TILES))
+
+  rows = []
+  for i in [0...localCities.length]
+    oldTime = if prevTimes?  then prevTimes[i]  else null
+    oldCity = if prevCities? then prevCities[i] else null
+
+    # Time: flip only on change (no stagger)
+    timeHtml = tilesFor oldTime, times[i], 0, false, false
+
+    # City: if changed → flip EVERY tile with noisy top, left→right
+    cityChanged = not prevCities? or oldCity isnt cities[i]
+    cityHtml =
+      if cityChanged and prevCities?
+        tilesFor oldCity, cities[i], 70, true, true
+      else if not prevCities? and CITY_REVEAL_ON_START
+        tilesFor Array(CITY_TILES+1).join(' '), cities[i], 60, true, true
+      else
+        tilesFor oldCity, cities[i], 0, false, false
+
+    rows.push """
+      <div class="group time-group">#{timeHtml}</div>
+      <div class="group city-group">#{cityHtml}</div>
+    """
+
+  prevTimes  = times
+  prevCities = cities
+
+  x = POS.x or 0; y = POS.y or 0; z = POS.z or 0; sc = POS.scale or 1
+  transform = "translate(-50%, -50%) translate(#{x}px, #{y}px) translateZ(#{z}px) scale(#{sc})"
+
+  css = """
+  <style>
+    .sf-root{position:fixed;left:50%;top:50%;transform-origin:50% 50%;
+      z-index:2147483647;color:#fff;user-select:none;pointer-events:none;
+      font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','SF Pro Display',Inter,Roboto,sans-serif}
+    .frame{width:950px;height:570px;padding:22px;border-radius:22px;pointer-events:none;
+      background:linear-gradient(180deg,#050506,#17191d 8%,#050506 92%);
+      border:2px solid #000; box-shadow:0 28px 64px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08)}
+    .board{width:910px;height:530px;background:linear-gradient(180deg,#0e0f11,#090a0b);
+      border-radius:18px;padding:24px; pointer-events:auto;
+      border:2px solid #3b3f45; box-shadow:inset 0 1px 0 rgba(255,255,255,.05), inset 0 -1px 0 rgba(0,0,0,.8)}
+    .header{display:grid;grid-template-columns: #{timeCol}px auto;column-gap:16px;align-items:center;
+      background:linear-gradient(180deg,#17191c,#0f1113);border-radius:12px;padding:12px 18px;margin-bottom:16px;
+      border:1px solid rgba(255,255,255,.06); box-shadow:inset 0 -8px 14px rgba(0,0,0,.8)}
+    .hcell{color:#efc25c;font-weight:800;letter-spacing:2px;font-size:18px;text-transform:uppercase;text-shadow:0 1px 0 #000}
+    .grid{display:grid;grid-template-columns: #{timeCol}px auto;column-gap:16px;row-gap:18px;padding:6px 2px;
+      min-height: #{TILE_H}px}
+
+    .group{display:flex;flex-wrap:nowrap}
+    .group .tile{margin-right: #{TILE_G}px}
+    .group .tile:last-child{margin-right:0}
+
+    .tile{position:relative;width:#{TILE_W}px;height:#{TILE_H}px;perspective:1100px;transform-style:preserve-3d;border-radius:6px;
+      filter: drop-shadow(0 5px 9px rgba(0,0,0,.38)); pointer-events:none}
+    .tile.blk .face, .tile.blk .flip{background:linear-gradient(180deg,#222426,#0f1012);color:#fff}
+
+    .face{position:absolute;left:0;width:100%;height:#{TILE_H/2}px;overflow:hidden;
+      display:block;border:1px solid rgba(0,0,0,.45); transform:translateZ(0)}
+    .face.top{top:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+    .face.bottom{bottom:0;border-top-left-radius:0;border-top-right-radius:0}
+
+    /* thinner type */
+    .glyph{position:absolute;left:0;top:0;width:100%;height:#{TILE_H}px;line-height:#{TILE_H}px;
+      text-align:center;font-weight:700;font-size:#{FONT_SZ}px;letter-spacing:-0.2px;
+      text-shadow:0 1px 0 rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+    .face.top   .glyph{top:0}
+    .face.bottom .glyph{top:-#{TILE_H/2}px}
+    .flip-top    .glyph{top:0}
+    .flip-bottom .glyph{top:-#{TILE_H/2}px}
+
+    /* --- slimmer, subtler hardware --- */
+    .hinge{
+      position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);
+      height:2px; border-radius:2px;
+      background:linear-gradient(90deg, rgba(0,0,0,.55), rgba(255,255,255,.08) 50%, rgba(0,0,0,.55));
+      opacity:.70; z-index:1;
+    }
+    .pin{
+      position:absolute;width:6px;height:6px;           /* dot pins */
+      top:calc(50% - 3px); border-radius:50%;
+      background:#0d0d10; pointer-events:none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(0,0,0,.45);
+    }
+    .pin.pin-l{ left:6px } .pin.pin-r{ right:6px }
+
+    /* fade/shrink hardware while flipping */
+    .tile.animate .pin{ opacity:.55; transform:scale(.9); transition:opacity .2s linear }
+    .tile.animate .hinge{ opacity:.6 }
+
+    /* Flip overlays (GPU promoted) */
+    .flip{position:absolute;left:0;width:100%;height:#{TILE_H/2}px;overflow:hidden;
+      display:block;border:1px solid rgba(0,0,0,.55); z-index:5; visibility:hidden;
+      backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:transform; transform:translateZ(0)}
+    .flip-top{top:0;transform-origin:bottom center}
+    .flip-bottom{bottom:0;transform-origin:top center;transform:rotateX(90deg)}
+
+    /* Use CSS var --st for per-tile stagger; bottom waits extra 220ms */
+    .tile.animate{--bt: 220ms}
+    .tile.animate .flip{visibility:visible}
+    .tile.animate .flip-top{animation:flipTop 360ms cubic-bezier(.2,.9,.3,1) var(--st) forwards}
+    .tile.animate .flip-bottom{animation:flipBottom 360ms cubic-bezier(.2,.9,.3,1) calc(var(--st) + var(--bt)) forwards}
+
+    @keyframes flipTop{
+      0%  {transform:rotateX(0)}
+      55% {transform:rotateX(-100deg)}
+      100%{transform:rotateX(-180deg);visibility:hidden}
+    }
+    @keyframes flipBottom{
+      0%  {transform:rotateX(90deg)}
+      100%{transform:rotateX(0)}
+    }
+  </style>
+  """
+
+  """
+  #{css}
+  <div class="sf-root" style="transform: #{transform}">
+    <div class="frame">
+      <div class="board">
+        <div class="header">
+          <div class="hcell">#{HEADERS.time}</div>
+          <div class="hcell">#{HEADERS.city}</div>
+        </div>
+        <div class="grid">
+          #{rows.join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+  """
+
+# Optional: update from the Web Inspector console
+onLoad: ->
+  # Replace rows at runtime
+  window.SplitFlapSetCities = (arr) ->
+    # arr example: [{city:'Paris', tz:'Europe/Paris'}, ...]
+    window._flipCitiesOverride = arr
+
+  # Change header labels at runtime
+  window.SplitFlapSetHeaders = (h) ->
+    # h example: {time:'Time', city:'Destination'}
+    HEADERS.time = h?.time ? HEADERS.time
+    HEADERS.city = h?.city ? HEADERS.city
