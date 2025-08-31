@@ -21,10 +21,10 @@ EDITABLE AT TOP:
 
 # ---------- CONFIG (EDIT HERE) ----------
 
-POS = x: 0, y: 0, z: 0, scale: 1
+POS = x: 0, y: -200, z: 0, scale: 1
 
 USE_12H      = false
-SHOW_SECONDS = false
+SHOW_SECONDS = true
 
 CITY_TILES = 14
 
@@ -33,7 +33,7 @@ HEADER_REVEAL_ON_START = false
 CITY_REVEAL_ON_START   = true
 
 # Header labels (text)
-HEADERS = time: 'TIME', city: 'DESTINATION'
+HEADERS = time: 'Custom', city: 'Header'
 
 # Header widths (independent of grid/rows). null → auto(label + EXTRA).
 HEADER_TIME_TILES       = null    # affects header only
@@ -46,7 +46,7 @@ HEADER_LABEL_COLOR = '#efc25c'
 HEADER_LABEL_FORCE = true
 
 # Force all-caps for ROW city names (header text remains as-is)
-FORCE_UPPERCASE = false
+FORCE_UPPERCASE = true
 
 # City chatter (random glyphs on city flips). Turn off for perfectly clean flips.
 CITY_CHATTER_ON_CHANGE   = true
